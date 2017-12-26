@@ -243,6 +243,7 @@ node_config(){
 	UserNODE_ID=${UserNODE_ID:-"3"}
 	sed -i '2d' /root/shadowsocks/userapiconfig.py
 	sed -i "2a\NODE_ID = ${UserNODE_ID}" /root/shadowsocks/userapiconfig.py
+	echo "IP_MD5_SALT = 'randomforsafety'" >> /root/shadowsocks/userapiconfig.py
 }
 install_node(){
 	clear
@@ -269,11 +270,16 @@ install_node(){
 	echo "/usr/bin/supervisord -c /etc/supervisord.conf" >> /etc/rc.local
 	chmod +x /etc/rc.d/rc.local
 	echo "#############################################################"
-	echo "# 安装完成，节点即将重启使配置生效                          #"
+	echo "# 安装完成                          #"
 	echo "# Github: https://github.com/mmmwhy/ss-panel-and-ss-py-mu   #"
 	echo "# Author: 91vps                                             #"
 	echo "#############################################################"
-	reboot now
+	stty erase '^H' && read -p "需要重启VPS后，才能使配置生效，是否现在重启 ? [Y/n] :" yn
+	[ -z "${yn}" ] && yn="y"
+	if [[ $yn == [Yy] ]]; then
+		echo -e "${Info} VPS 重启中..."
+		reboot
+	fi
 }
 install_panel_and_node(){
 	install_ss_panel_mod_v3 $1
