@@ -352,7 +352,6 @@ manage_iptables(){
 	Add_iptables
 	echo -e "${Info} 开始保存 iptables防火墙规则..."
 	Save_iptables
-
 }
 echo
 echo "#############################################################"
