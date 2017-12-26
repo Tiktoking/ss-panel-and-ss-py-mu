@@ -2,7 +2,7 @@
 #Check Root
 Green_font_prefix="\033[32m" && Red_font_prefix="\033[31m" && Green_background_prefix="\033[42;37m" && Red_background_prefix="\033[41;37m" && Font_color_suffix="\033[0m"
 Info="${Green_font_prefix}[信息]${Font_color_suffix}"
-
+Separator_1="——————————————————————————————"
 [ $(id -u) != "0" ] && { echo "Error: You must be root to run this script"; exit 1; }
 install_ss_panel_mod_v3(){
 	yum -y remove httpd
@@ -346,6 +346,17 @@ manage_iptables(){
 	stty erase '^H' && read -p "(默认: 80):" ssr_port
 	[[ -z "$ssr_port" ]] && ssr_port="80"
 	expr ${ssr_port} + 0 &>/dev/null
+		if [[ $? == 0 ]]; then
+		if [[ ${ssr_port} -ge 1 ]] && [[ ${ssr_port} -le 65535 ]]; then
+			echo && echo ${Separator_1} && echo -e "	端口 : ${Green_font_prefix}${ssr_port}${Font_color_suffix}" && echo ${Separator_1} && echo
+			break
+		else
+			echo -e "${Error} 请输入正确的数字(1-65535)"
+		fi
+	else
+		echo -e "${Error} 请输入正确的数字(1-65535)"
+	fi
+	done
 	echo -e "${Info} 开始设置 iptables防火墙..."
 	Set_iptables
 	echo -e "${Info} 开始添加 iptables防火墙规则..."
@@ -353,6 +364,7 @@ manage_iptables(){
 	echo -e "${Info} 开始保存 iptables防火墙规则..."
 	Save_iptables
 }
+
 echo
 echo "#############################################################"
 echo "# One click Install SS-panel and Shadowsocks-Py-Mu          #"
