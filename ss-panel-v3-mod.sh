@@ -1,5 +1,8 @@
 #!/bin/bash
 #Check Root
+Green_font_prefix="\033[32m" && Red_font_prefix="\033[31m" && Green_background_prefix="\033[42;37m" && Red_background_prefix="\033[41;37m" && Font_color_suffix="\033[0m"
+Info="${Green_font_prefix}[信息]${Font_color_suffix}"
+
 [ $(id -u) != "0" ] && { echo "Error: You must be root to run this script"; exit 1; }
 install_ss_panel_mod_v3(){
 	yum -y remove httpd
@@ -189,6 +192,58 @@ install_ubuntu_ssr(){
 	cp apiconfig.py userapiconfig.py
 	cp config.json user-config.json
 }
+#check OS version
+check_sys(){
+	if [[ -f /etc/redhat-release ]]; then
+		release="centos"
+	elif cat /etc/issue | grep -q -E -i "debian"; then
+		release="debian"
+	elif cat /etc/issue | grep -q -E -i "ubuntu"; then
+		release="ubuntu"
+	elif cat /etc/issue | grep -q -E -i "centos|red hat|redhat"; then
+		release="centos"
+	elif cat /proc/version | grep -q -E -i "debian"; then
+		release="debian"
+	elif cat /proc/version | grep -q -E -i "ubuntu"; then
+		release="ubuntu"
+	elif cat /proc/version | grep -q -E -i "centos|red hat|redhat"; then
+		release="centos"
+	 fi
+}
+install_ssr_for_each(){
+	check_sys
+	if [[ ${release} = "centos" ]]; then
+		install_centos_ssr
+	else
+		install_ubuntu_ssr
+	fi
+}
+node_config(){
+	while true; do
+		read -p "Please input your domain(like:https://ss.feiyang.li or http://114.114.114.114): " Userdomain
+		read -p "Please input your muKey(like:mupass): " Usermukey
+		read -p "Please input your Node_ID(like:1): " UserNODE_ID
+		read -p "Apply the config?(y/n): " ifdone
+		if [[ $ifdone = "n" ]]; then
+			echo -e "${Info} Please reinput the config text\n"
+		else
+			break
+		fi
+	done
+	install_ssr_for_each
+	echo -e "${Info} shadowsocks has been installed\n"
+	IPAddress=`wget http://members.3322.org/dyndns/getip -O - -q ; echo`;
+	cd /root/shadowsocks
+	echo -e "${Info} modify userapiconfig.py...\n"
+	sed -i "s#'zhaoj.in'#'v.qq.com'#" /root/shadowsocks/userapiconfig.py
+	Userdomain=${Userdomain:-"http://${IPAddress}"}
+	sed -i "s#https://zhaoj.in#${Userdomain}#" /root/shadowsocks/userapiconfig.py
+	Usermukey=${Usermukey:-"mupass"}
+	sed -i "s#glzjin#${Usermukey}#" /root/shadowsocks/userapiconfig.py
+	UserNODE_ID=${UserNODE_ID:-"3"}
+	sed -i '2d' /root/shadowsocks/userapiconfig.py
+	sed -i "2a\NODE_ID = ${UserNODE_ID}" /root/shadowsocks/userapiconfig.py
+}
 install_node(){
 	clear
 	echo
@@ -201,61 +256,16 @@ install_node(){
 	#Check Root
 	[ $(id -u) != "0" ] && { echo "Error: You must be root to run this script"; exit 1; }
 	#check OS version
-	check_sys(){
-		if [[ -f /etc/redhat-release ]]; then
-			release="centos"
-		elif cat /etc/issue | grep -q -E -i "debian"; then
-			release="debian"
-		elif cat /etc/issue | grep -q -E -i "ubuntu"; then
-			release="ubuntu"
-		elif cat /etc/issue | grep -q -E -i "centos|red hat|redhat"; then
-			release="centos"
-		elif cat /proc/version | grep -q -E -i "debian"; then
-			release="debian"
-		elif cat /proc/version | grep -q -E -i "ubuntu"; then
-			release="ubuntu"
-		elif cat /proc/version | grep -q -E -i "centos|red hat|redhat"; then
-			release="centos"
-	  fi
-	}
-	install_ssr_for_each(){
-		check_sys
-		if [[ ${release} = "centos" ]]; then
-			install_centos_ssr
-		else
-			install_ubuntu_ssr
-		fi
-	}
+	check_sys
 	# 取消文件数量限制
 	sed -i '$a * hard nofile 512000\n* soft nofile 512000' /etc/security/limits.conf
-	read -p "Please input your domain(like:https://ss.feiyang.li or http://114.114.114.114): " Userdomain
-	read -p "Please input your muKey(like:mupass): " Usermukey
-	read -p "Please input your Node_ID(like:1): " UserNODE_ID
-	install_ssr_for_each
-	IPAddress=`wget http://members.3322.org/dyndns/getip -O - -q ; echo`;
-	cd /root/shadowsocks
-	echo -e "modify Config.py...\n"
-	sed -i "s#'zhaoj.in'#'jd.hk'#" /root/shadowsocks/userapiconfig.py
-	Userdomain=${Userdomain:-"http://${IPAddress}"}
-	sed -i "s#https://zhaoj.in#${Userdomain}#" /root/shadowsocks/userapiconfig.py
-	Usermukey=${Usermukey:-"mupass"}
-	sed -i "s#glzjin#${Usermukey}#" /root/shadowsocks/userapiconfig.py
-	UserNODE_ID=${UserNODE_ID:-"3"}
-	sed -i '2d' /root/shadowsocks/userapiconfig.py
-	sed -i "2a\NODE_ID = ${UserNODE_ID}" /root/shadowsocks/userapiconfig.py
+	#node_install and config
+	node_config
 	# 启用supervisord
 	supervisorctl shutdown
 	#某些机器没有echo_supervisord_conf 
 	wget -N -P  /etc/ --no-check-certificate  https://raw.githubusercontent.com/mmmwhy/ss-panel-and-ss-py-mu/master/supervisord.conf
 	supervisord
-	#iptables
-	iptables -F
-	iptables -X  
-	iptables -I INPUT -p tcp -m tcp --dport 22:65535 -j ACCEPT
-	iptables -I INPUT -p udp -m udp --dport 22:65535 -j ACCEPT
-	iptables-save >/etc/sysconfig/iptables
-	iptables-save >/etc/sysconfig/iptables
-	echo 'iptables-restore /etc/sysconfig/iptables' >> /etc/rc.local
 	echo "/usr/bin/supervisord -c /etc/supervisord.conf" >> /etc/rc.local
 	chmod +x /etc/rc.d/rc.local
 	echo "#############################################################"
@@ -297,21 +307,69 @@ install_panel_and_node(){
 	echo "#############################################################"
 	reboot now
 }
+
+# 设置 防火墙规则
+Add_iptables(){
+	iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport ${ssr_port} -j ACCEPT
+	iptables -I INPUT -m state --state NEW -m udp -p udp --dport ${ssr_port} -j ACCEPT
+	ip6tables -I INPUT -m state --state NEW -m tcp -p tcp --dport ${ssr_port} -j ACCEPT
+	ip6tables -I INPUT -m state --state NEW -m udp -p udp --dport ${ssr_port} -j ACCEPT
+}
+Save_iptables(){
+	check_sys
+	if [[ ${release} == "centos" ]]; then
+		service iptables save
+		service ip6tables save
+	else
+		iptables-save > /etc/iptables.up.rules
+		ip6tables-save > /etc/ip6tables.up.rules
+	fi
+}
+Set_iptables(){
+	check_sys
+	if [[ ${release} == "centos" ]]; then
+		service iptables save
+		service ip6tables save
+		chkconfig --level 2345 iptables on
+		chkconfig --level 2345 ip6tables on
+	else
+		iptables-save > /etc/iptables.up.rules
+		ip6tables-save > /etc/ip6tables.up.rules
+		echo -e '#!/bin/bash\n/sbin/iptables-restore < /etc/iptables.up.rules\n/sbin/ip6tables-restore < /etc/ip6tables.up.rules' > /etc/network/if-pre-up.d/iptables
+		chmod +x /etc/network/if-pre-up.d/iptables
+	fi
+}
+manage_iptables(){
+	while true
+	do
+	echo -e "请输入要设置的ShadowsocksR单端口的端口号"
+	stty erase '^H' && read -p "(默认: 80):" ssr_port
+	[[ -z "$ssr_port" ]] && ssr_port="80"
+	expr ${ssr_port} + 0 &>/dev/null
+	echo -e "${Info} 开始设置 iptables防火墙..."
+	Set_iptables
+	echo -e "${Info} 开始添加 iptables防火墙规则..."
+	Add_iptables
+	echo -e "${Info} 开始保存 iptables防火墙规则..."
+	Save_iptables
+
+}
 echo
 echo "#############################################################"
 echo "# One click Install SS-panel and Shadowsocks-Py-Mu          #"
 echo "# Github: https://github.com/mmmwhy/ss-panel-and-ss-py-mu   #"
-echo "# Author: 91vps                                             #"
+echo "# Modified by Tiktoking, Author: mmmwhy                     #"
 echo "# Please choose the server you want                         #"
 echo "# 1  SS-V3_mod_panel and node One click Install             #"
 echo "# 2  SS-node One click Install                              #"
+echo "# 3  Apply Iptables Rules                                       #"
 echo "#############################################################"
 echo
 num=$1
 if [ "${num}" == "1" ]; then
     install_panel_and_node 1
 else
-    stty erase '^H' && read -p " 请输入数字 [1-2]:" num
+    stty erase '^H' && read -p " 请输入数字 [1-3]:" num
 		case "$num" in
 		1)
 		install_panel_and_node
@@ -319,8 +377,11 @@ else
 		2)
 		install_node
 		;;
+		3)
+		manage_iptables
+		;;
 		*)
-		echo "请输入正确数字 [1-2]"
+		echo "请输入正确数字 [1-3]"
 		;;
 	esac
 fi
