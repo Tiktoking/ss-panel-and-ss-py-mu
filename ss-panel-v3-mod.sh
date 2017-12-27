@@ -517,6 +517,7 @@ start_menu(){
 		;;
 		4)
 		upgarde_python2.7.12
+		;;
 		5)
 		exit 1
 		;;
